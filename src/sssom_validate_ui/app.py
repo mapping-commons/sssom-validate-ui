@@ -4,6 +4,10 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 from urllib.request import urlopen
+import sys
+
+sys.tracebacklimit = 0
+from contextlib import redirect_stdout, redirect_stderr
 
 import pandas as pd
 import streamlit as st
@@ -120,8 +124,15 @@ def parse_sssom_table_from_string(
 def validate_sssom(sssom_text):
     validation_types = [SchemaValidationType.JsonSchema]
     msdf = parse_sssom_table_from_string(data=sssom_text)
-    validate(msdf=msdf, validation_types=validation_types)
-    return len(sssom_text)
+    
+    try:
+        validate(msdf=msdf, validation_types=validation_types)
+    except Exception as e:
+        return str(e)
+
+    return "All good."
+
+
 
 st.title('SSSOM Validator')
 
