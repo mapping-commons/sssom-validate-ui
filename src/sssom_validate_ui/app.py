@@ -1,15 +1,15 @@
-import streamlit as st
-from sssom.validators import validate
-from sssom.parsers import _get_prefix_map_and_metadata, from_sssom_dataframe
 from pathlib import Path
-import pandas as pd
+from sssom.parsers import _get_prefix_map_and_metadata, from_sssom_dataframe
+from sssom.typehints import Metadata, MetadataType, PrefixMap
+from sssom.validators import validate
+from typing import Any, Callable, Dict, List, Optional, TextIO, Tuple, Union, cast
 from urllib.request import urlopen
 import logging
-import yaml
+import pandas as pd
 import re
-from typing import Any, Callable, Dict, List, Optional, TextIO, Tuple, Union, cast
-from sssom.typehints import Metadata, MetadataType, PrefixMap
+import streamlit as st
 import validators
+import yaml
 from sssom.util import (
     PREFIX_MAP_KEY,
     SSSOM_DEFAULT_RDF_SERIALISATION,
