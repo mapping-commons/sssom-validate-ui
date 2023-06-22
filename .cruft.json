@@ -1,0 +1,24 @@
+{
+  "template": "https://github.com/monarch-initiative/monarch-project-template",
+  "commit": "4a7682b439c90d913390d1ca7d930a88055a22d3",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "project_name": "sssom-validate-ui",
+      "github_org_name": "mapping-commons",
+      "__project_slug": "sssom_validate_ui",
+      "project_description": "A simple UI for validating SSSOM files",
+      "min_python_version": "3.9",
+      "file_name": "app.py",
+      "greeting_recipient": "World",
+      "full_name": "Nicolas Matentzoglu",
+      "email": "nicolas.matentzoglu@gmail.com",
+      "__author": "Nicolas Matentzoglu <nicolas.matentzoglu@gmail.com>",
+      "license": "BSD-3",
+      "github_token_for_doc_deployment": "GH_TOKEN",
+      "github_token_for_pypi_deployment": "PYPI_TOKEN",
+      "_template": "https://github.com/monarch-initiative/monarch-project-template"
+    }
+  },
+  "directory": null
+}
