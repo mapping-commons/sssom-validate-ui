@@ -1,36 +1,25 @@
-from pathlib import Path
-from sssom.parsers import _get_prefix_map_and_metadata, from_sssom_dataframe
-from sssom.typehints import Metadata, MetadataType, PrefixMap
-from sssom.validators import validate
-from typing import Any, Callable, Dict, List, Optional, TextIO, Tuple, Union, cast
-from urllib.request import urlopen
 import logging
-import pandas as pd
 import re
+from io import StringIO
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
+from urllib.request import urlopen
+
+import pandas as pd
 import streamlit as st
 import validators
 import yaml
-from sssom.util import (
-    PREFIX_MAP_KEY,
-    SSSOM_DEFAULT_RDF_SERIALISATION,
-    URI_SSSOM_MAPPINGS,
-    MappingSetDataFrame,
-    NoCURIEException,
-    curie_from_uri,
-    get_file_extension,
-    is_multivalued_slot,
-    raise_for_bad_path,
-    read_pandas,
-    read_csv,
-    to_mapping_set_dataframe,
-    sort_df_rows_columns,
-)
 from sssom.constants import (
-    CONFIDENCE,
     CURIE_MAP,
 )
+from sssom.parsers import _get_prefix_map_and_metadata, from_sssom_dataframe
+from sssom.typehints import MetadataType, PrefixMap
+from sssom.util import (
+    MappingSetDataFrame,
+    sort_df_rows_columns,
+)
+from sssom.validators import validate
 
-from io import StringIO
 
 def _read_metadata_from_table(path: Union[str, Path, StringIO]) -> Dict[str, Any]:
     if isinstance(path, Path) and not isinstance(path, StringIO) or not isinstance(path, StringIO) and not validators.url(path):
