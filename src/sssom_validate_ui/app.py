@@ -18,9 +18,10 @@ from sssom.util import (
     MappingSetDataFrame,
     sort_df_rows_columns,
 )
+from sssom.constants import SchemaValidationType
 from sssom.validators import validate
 
-
+# Move this to sssom-py
 def _read_metadata_from_table(path: Union[str, Path, StringIO]) -> Dict[str, Any]:
     if isinstance(path, Path) and not isinstance(path, StringIO) or not isinstance(path, StringIO) and not validators.url(path):
         with open(path) as file:
@@ -53,6 +54,7 @@ def _read_metadata_from_table(path: Union[str, Path, StringIO]) -> Dict[str, Any
         return meta
     return {}
 
+# move this to sssom-py
 def parse_sssom_table_from_string(
     data: str,
     prefix_map: Optional[PrefixMap] = None,
@@ -116,7 +118,7 @@ def parse_sssom_table_from_string(
     return msdf
 
 def validate_sssom(sssom_text):
-    validation_types = None
+    validation_types = [SchemaValidationType.JsonSchema]
     msdf = parse_sssom_table_from_string(data=sssom_text)
     validate(msdf=msdf, validation_types=validation_types)
     return len(sssom_text)
