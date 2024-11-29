@@ -12,7 +12,6 @@ click = "*"
 importlib-metadata = "^4.8.0"
 streamlit = "^1.23.1"
 sssom = {path = "../sssom-py", develop = true}
-pandas = "^2.0.2"
 tsvalid = {path = "../tsvalid", develop = true}
 
 [tool.poetry.group.dev.dependencies]
