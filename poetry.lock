@@ -1235,6 +1235,7 @@ files = [
 numpy = [
     {version = ">=1.22.4", markers = "python_version < \"3.11\""},
     {version = ">=1.23.2", markers = "python_version == \"3.11\""},
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -3122,5 +3123,5 @@ type = ["pytest-mypy"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.10,<3.12"
-content-hash = "ae0c7a69831fac8da623f8b9ca39372e1c1ba03fd696d19df220589196d02853"
+python-versions = ">=3.10,<3.13"
+content-hash = "18ea00c5d1c62a0e3ad9c5008cb55f6332535e037a5d155c14e332f08b334a22"
