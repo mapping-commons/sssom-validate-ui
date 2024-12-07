@@ -1,21 +1,19 @@
 """Simple streamlit app for validating SSSOM files."""
 
-import sys
-from io import StringIO
-from typing import List
-from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import logging
-from importlib.metadata import version, PackageNotFoundError
+import sys
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from importlib.metadata import PackageNotFoundError, version
+from io import StringIO
 
-
-
+import pandas as pd
 import streamlit as st
 from linkml.generators.pythongen import PythonGenerator
 from linkml.validators.jsonschemavalidator import JsonSchemaDataValidator
 from sssom.constants import SCHEMA_YAML, SchemaValidationType
 from sssom.parsers import parse_sssom_table, to_mapping_set_document
 from sssom.util import MappingSetDataFrame
-from sssom.validators import ValidationReport, validate
+from sssom.validators import validate
 from tsvalid.tsvalid import validates
 
 sys.tracebacklimit = 0
@@ -30,12 +28,6 @@ def validate_linkml(msdf: MappingSetDataFrame):
     result = validator.validate_object(mapping_set, target_class=mod.MappingSet)
     return result
 
-
-import logging
-import sys
-from io import StringIO
-import pandas as pd
-from contextlib import redirect_stdout, redirect_stderr
 
 def validate_sssom(sssom_text_str, limit_lines_displayed=5):
     """Validate a mapping set using SSSOM and tsvalid validations."""

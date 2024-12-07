@@ -1,4 +1,5 @@
 """Command line interface for sssom-validate-ui."""
+
 import logging
 
 import click

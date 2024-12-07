@@ -1,4 +1,5 @@
 """sssom-validate-ui package."""
+
 import importlib_metadata
 
 try:
