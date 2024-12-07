@@ -102,7 +102,7 @@ def configure_logger(capture_stream):
     logger = logging.getLogger()
     log_handler = logging.StreamHandler(capture_stream)
     log_handler.setLevel(logging.DEBUG)
-    log_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+    log_handler.setFormatter(logging.Formatter("**%(levelname)s**: %(message)s"))
     logger.addHandler(log_handler)
     try:
         yield
