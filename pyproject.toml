@@ -11,7 +11,8 @@ python = ">=3.10,<3.13"
 click = "*"
 importlib-metadata = "^4.8.0"
 streamlit = "^1.23.1"
-sssom = ">=0.4.14"
+sssom = ">=0.4.15"
+#sssom = {path = "../sssom-py", develop = true}
 tsvalid = ">=0.0.4"
 tabulate = ">=0.8.9"
 
