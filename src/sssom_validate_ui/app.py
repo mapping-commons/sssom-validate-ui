@@ -31,14 +31,15 @@ def validate_linkml(msdf: MappingSetDataFrame):
 
 def validate_sssom(sssom_text_str, limit_lines_displayed=5):
     """Validate a mapping set using SSSOM and tsvalid validations."""
-    
     # Capture logs for SSSOM validation
     sssom_validation_capture = StringIO()
     sssom_text = StringIO(sssom_text_str)
-    sssom_json = {'mapping_set_id': 'NONE'}
+    sssom_json = {"mapping_set_id": "NONE"}
     sssom_rdf = "NONE"
-    pd.set_option('future.no_silent_downcasting', True)
-    with redirect_stdout(sssom_validation_capture), redirect_stderr(sssom_validation_capture), configure_logger(sssom_validation_capture):
+    pd.set_option("future.no_silent_downcasting", True)
+    with redirect_stdout(sssom_validation_capture), redirect_stderr(
+        sssom_validation_capture
+    ), configure_logger(sssom_validation_capture):
         validation_types = [
             SchemaValidationType.JsonSchema,
             SchemaValidationType.PrefixMapCompleteness,
@@ -46,31 +47,46 @@ def validate_sssom(sssom_text_str, limit_lines_displayed=5):
         ]
         msdf = parse_sssom_table(sssom_text)
         validate(msdf=msdf, validation_types=validation_types, fail_on_error=False)
-        msdf_subset_for_display = MappingSetDataFrame(msdf.df.head(limit_lines_displayed), converter=msdf.converter, metadata=msdf.metadata)
+        msdf_subset_for_display = MappingSetDataFrame(
+            msdf.df.head(limit_lines_displayed), converter=msdf.converter, metadata=msdf.metadata
+        )
         msdf_subset_for_display.clean_prefix_map()
         from sssom.writers import to_json, to_rdf_graph
+
         sssom_json = to_json(msdf_subset_for_display)
-        sssom_rdf = to_rdf_graph(msdf=msdf).serialize(format="turtle", encoding="utf-8").decode("utf-8")
+        if msdf.metadata.get("extension_definitions"):
+            logging.warning(
+                "Extension definitions are not supported in RDF output yet.\n"
+                "This means that we could test if your code can be translated to RDF.\n"
+                "Follow https://github.com/linkml/linkml/issues/2445 for updates."
+            )
+            sssom_rdf = None
+        else:
+            sssom_rdf = (
+                to_rdf_graph(msdf=msdf).serialize(format="turtle", encoding="utf-8").decode("utf-8")
+            )
         sssom_markdown = msdf_subset_for_display.df.to_markdown(index=False)
     log_output = sssom_validation_capture.getvalue() or "No validation issues detected."
     sssom_ok = "No validation issues detected." in log_output
 
     # Capture logs for tsvalid validation
     tsvalid_capture = StringIO()
-    with redirect_stdout(tsvalid_capture), redirect_stderr(tsvalid_capture), configure_logger(tsvalid_capture):
+    with redirect_stdout(tsvalid_capture), redirect_stderr(tsvalid_capture), configure_logger(
+        tsvalid_capture
+    ):
         validates(sssom_text, comment="#", exceptions=[], summary=True, fail=False)
 
     # Restore outputs and get results
     tsvalid_report = tsvalid_capture.getvalue() or "No validation issues detected."
     tsvalid_ok = "No validation issues detected." in tsvalid_report
     # Compile the validation report
-    
+
     report = ""
-    
+
     if sssom_ok and tsvalid_ok:
         report = "No validation issues detected."
     else:
-        report = f"Some problems where found with your file."
+        report = "Some problems where found with your file."
         if not sssom_ok:
             report += f"\n\n### SSSOM report\n\nFor more information see [SSSOM documentation](https://mapping-commons.github.io/sssom/linkml-index/)\n\n{log_output}"
         if not tsvalid_ok:
@@ -86,7 +102,7 @@ def configure_logger(capture_stream):
     logger = logging.getLogger()
     log_handler = logging.StreamHandler(capture_stream)
     log_handler.setLevel(logging.DEBUG)
-    log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    log_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     logger.addHandler(log_handler)
     try:
         yield
@@ -94,11 +110,12 @@ def configure_logger(capture_stream):
         log_handler.flush()  # Ensure everything is written to the stream
         logger.removeHandler(log_handler)
 
-def get_package_version(package_name):
+
+def _get_package_version(package_name):
     try:
         return version(package_name)
     except PackageNotFoundError:
-       return (f"{package_name} is not installed.")
+        return f"{package_name} is not installed."
 
 
 def add_example():
@@ -130,8 +147,12 @@ limit_lines_displayed = 5
 st.image("src/sssom_validate_ui/resources/sssom-logo.png", use_container_width=True)
 st.title("SSSOM Validator")
 
-st.markdown("This validator is provided by the [Monarch Initiative](https://monarchinitiative.org/).")
-st.markdown(f"Currently, the validator checks the the first {limit_lines_evaluated} lines of the provided SSSOM file.")
+st.markdown(
+    "This validator is provided by the [Monarch Initiative](https://monarchinitiative.org/)."
+)
+st.markdown(
+    f"Currently, the validator checks the the first {limit_lines_evaluated} lines of the provided SSSOM file."
+)
 
 area_txt = "Paste your SSSOM mapping text here:"
 
@@ -139,18 +160,22 @@ result = add_example()
 sssom_text = st.text_area(area_txt, result, height=400, key="sssom_input")
 
 sssom_length_within_limit = True
-if len(sssom_text.splitlines())>limit_lines_evaluated:
+if len(sssom_text.splitlines()) > limit_lines_evaluated:
     truncated_text = "\n".join(sssom_text.splitlines()[:limit_lines_evaluated])
     sssom_length_within_limit = False
-    
+
 if st.button("Validate"):
     if not sssom_length_within_limit:
-         st.markdown(f"**Warning**: your file is too long, only the first {limit_lines_evaluated} lines will be evaluated.")
-    
-    result, sssom_json, sssom_rdf, sssom_markdown = validate_sssom(sssom_text, limit_lines_displayed)
-    
+        st.markdown(
+            f"**Warning**: your file is too long, only the first {limit_lines_evaluated} lines will be evaluated."
+        )
+
+    result, sssom_json, sssom_rdf, sssom_markdown = validate_sssom(
+        sssom_text, limit_lines_displayed
+    )
+
     st.markdown(str(result).replace("\n", "\n\n"))
-    
+
     rendering_text = f"""\n\n
 ### SSSOM Rendered\n\n"
 
@@ -159,26 +184,28 @@ This is how the first {limit_lines_displayed} lines of your SSSOM file look like
 
     st.markdown(sssom_markdown)
 
-    with st.expander("RDF"):
-        rendering_text_rdf = f"""\n\n
-    ```turtle
-    {sssom_rdf}
-    ```"""
-        st.markdown(rendering_text_rdf)
-
+    if sssom_rdf:
+        with st.expander("RDF"):
+            rendering_text_rdf = f"""\n\n
+        ```turtle
+        {sssom_rdf}
+        ```"""
+            st.markdown(rendering_text_rdf)
+    else:
+        st.markdown(
+            "Extension definitions are not supported in RDF output yet.\n"
+            "Follow https://github.com/linkml/linkml/issues/2445 for updates."
+        )
 
     with st.expander("JSON"):
         st.json(sssom_json)
-
 
 tool_versions = f"""\n\n
 
 ### Validation info report
 
-**sssom-py** version: {get_package_version("sssom")}\n
-**tsvalid** version: {get_package_version("tsvalid")}\n
-**linkml** version: {get_package_version("linkml")}\n
+**sssom-py** version: {_get_package_version("sssom")}\n
+**tsvalid** version: {_get_package_version("tsvalid")}\n
+**linkml** version: {_get_package_version("linkml")}\n
 """
 st.markdown(tool_versions)
-    
-    
