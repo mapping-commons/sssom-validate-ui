@@ -119,12 +119,7 @@ if st.button("Validate"):
     sssom_text = _get_sssom_text(sssom_text, sssom_url_input, limit_lines_evaluated)
     result: SSSOMValidation = _validate_sssom(sssom_text, limit_lines_displayed)
 
-    if result.is_valid():
-        badge_url = "https://img.shields.io/badge/VALID-green"
-    else:
-        badge_url = "https://img.shields.io/badge/INVALID-red"
-
-    _render_validation_batch(result.is_valid(), "Validation status overall")
+    _render_validation_batch(result.is_valid(), "Validation%20status%20overall")
 
     st.header("tsvalid validation")
     _render_validation_batch(result.is_ok_tsvalid(), "tsvalid")
