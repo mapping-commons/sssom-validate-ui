@@ -43,7 +43,7 @@ class SSSOMValidation:
         )
         msdf_subset_for_display.clean_prefix_map()
 
-        self.sssom_json = json.dumps(to_json(msdf_subset_for_display))
+        self.sssom_json = json.dumps(to_json(msdf_subset_for_display), indent=4)
 
         if msdf.metadata.get("extension_definitions"):
             logging.warning(

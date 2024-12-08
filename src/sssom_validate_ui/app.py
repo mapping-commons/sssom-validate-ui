@@ -107,12 +107,15 @@ st.markdown(
     f"Currently, the validator checks the the first {limit_lines_evaluated} lines of the provided SSSOM file."
 )
 
-area_txt = "Paste your SSSOM mapping text here:"
+area_txt = ("Paste your SSSOM mapping in TSV format here. For information on how to format a SSSOM TSV "
+            "correctly see [here](https://mapping-commons.github.io/sssom/spec-formats-tsv/):")
 
 sssom_text = st.text_area(area_txt, generate_example(), height=400, key="sssom_input")
 example_url = ""
 sssom_url_input = st.text_input(
-    "Paste a URL to your SSSOM file here.", example_url, key="sssom_input_url"
+    "Paste a URL to your SSSOM file here. "
+    "The URL will take precedence over anything you might see in the text area above.", 
+    example_url, key="sssom_input_url"
 )
 
 if st.button("Validate"):
@@ -151,12 +154,12 @@ if st.button("Validate"):
     with st.expander("Conversion report"):
         st.markdown(result.get_sssom_conversion_report())
     _render_serialisation_section(result.sssom_rdf, "RDF", "turtle")
-    _render_serialisation_section(result.sssom_json, "JSON", "json")
+    _render_serialisation_section(result.sssom_json, "JSON-LD", "json")
 
 st.header("Additional information")
 _render_tool_information()
 
-st.header("Contact")
+st.markdown("### Contact")
 st.image("src/sssom_validate_ui/resources/monarch.png", use_container_width=False, width=300)
 st.markdown("Presented by the [Monarch Initiative](https://monarchinitiative.org/)")
 st.markdown(
