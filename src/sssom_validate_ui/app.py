@@ -2,144 +2,97 @@
 
 import logging
 import sys
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from importlib.metadata import PackageNotFoundError, version
 from io import StringIO
 
 import pandas as pd
+import requests
 import streamlit as st
-from linkml.generators.pythongen import PythonGenerator
-from linkml.validators.jsonschemavalidator import JsonSchemaDataValidator
-from sssom.constants import SCHEMA_YAML, SchemaValidationType
-from sssom.parsers import parse_sssom_table, to_mapping_set_document
-from sssom.util import MappingSetDataFrame
-from sssom.validators import validate
-from tsvalid.tsvalid import validates
+
+from sssom_validate_ui.utils import SSSOMValidation, generate_example, get_package_version
 
 sys.tracebacklimit = 0
 
 
-def validate_linkml(msdf: MappingSetDataFrame):
-    """Validate the contents of the mapping set using the LinkML JSON Schema validator."""
-    mod = PythonGenerator(SCHEMA_YAML).compile_module()
-    validator = JsonSchemaDataValidator(schema=SCHEMA_YAML)
+def _maybe_prune_sssom_text(sssom_text, limit_lines_evaluated):
+    sssom_length_within_limit = True
+    if len(sssom_text.splitlines()) > limit_lines_evaluated:
+        truncated_text = "\n".join(sssom_text.splitlines()[:limit_lines_evaluated])
+        sssom_length_within_limit = False
+    else:
+        truncated_text = sssom_text
 
-    mapping_set = to_mapping_set_document(msdf).mapping_set
-    result = validator.validate_object(mapping_set, target_class=mod.MappingSet)
+    if not sssom_length_within_limit:
+        logging.warning(
+            f"Your file is too long, only the first {limit_lines_evaluated} lines will be evaluated."
+        )
+    return truncated_text
+
+
+def _get_sssom_text(sssom_text_str, sssom_url_str, limit_lines_evaluated):
+    """Get the SSSOM text from a string or URL. URL takes precedence.
+
+    Args:
+        sssom_text_str (str): The SSSOM text.
+        sssom_url_str (str): The SSSOM URL.
+        limit_lines_evaluated (int): The maximum number of lines to evaluate.
+
+    Returns:
+        StringIO: The SSSOM text as a StringIO object.
+
+    Raises:
+        ValueError: If the denominator is zero.
+    """
+    if sssom_text_str and sssom_url_str:
+        logging.warning("Both SSSOM text and URL provided. URL will be used.")
+    sssom_text = ""
+    if sssom_text_str:
+        sssom_text = sssom_text_str
+    elif sssom_url_str:
+        sssom_text = requests.get(sssom_url_str, timeout=60).text
+    else:
+        raise ValueError("No SSSOM text or URL provided.")
+    return StringIO(_maybe_prune_sssom_text(sssom_text, limit_lines_evaluated))
+
+
+def _validate_sssom(sssom_text: str, limit_lines_displayed=5):
+    """Validate a mapping set using SSSOM and tsvalid validations."""
+    pd.set_option("future.no_silent_downcasting", True)
+    result = SSSOMValidation(sssom_text=sssom_text, limit_lines_displayed=limit_lines_displayed)
+    result.run()
     return result
 
 
-def validate_sssom(sssom_text_str, limit_lines_displayed=5):
-    """Validate a mapping set using SSSOM and tsvalid validations."""
-    # Capture logs for SSSOM validation
-    sssom_validation_capture = StringIO()
-    sssom_text = StringIO(sssom_text_str)
-    sssom_json = {"mapping_set_id": "NONE"}
-    sssom_rdf = "NONE"
-    pd.set_option("future.no_silent_downcasting", True)
-    with redirect_stdout(sssom_validation_capture), redirect_stderr(
-        sssom_validation_capture
-    ), configure_logger(sssom_validation_capture):
-        validation_types = [
-            SchemaValidationType.JsonSchema,
-            SchemaValidationType.PrefixMapCompleteness,
-            SchemaValidationType.StrictCurieFormat,
-        ]
-        msdf = parse_sssom_table(sssom_text)
-        validate(msdf=msdf, validation_types=validation_types, fail_on_error=False)
-        msdf_subset_for_display = MappingSetDataFrame(
-            msdf.df.head(limit_lines_displayed), converter=msdf.converter, metadata=msdf.metadata
-        )
-        msdf_subset_for_display.clean_prefix_map()
-        from sssom.writers import to_json, to_rdf_graph
-
-        sssom_json = to_json(msdf_subset_for_display)
-        if msdf.metadata.get("extension_definitions"):
-            logging.warning(
-                "Extension definitions are not supported in RDF output yet.\n"
-                "This means that we could test if your code can be translated to RDF.\n"
-                "Follow https://github.com/linkml/linkml/issues/2445 for updates."
-            )
-            sssom_rdf = None
-        else:
-            sssom_rdf = (
-                to_rdf_graph(msdf=msdf).serialize(format="turtle", encoding="utf-8").decode("utf-8")
-            )
-        sssom_markdown = msdf_subset_for_display.df.to_markdown(index=False)
-    log_output = sssom_validation_capture.getvalue() or "No validation issues detected."
-    sssom_ok = "No validation issues detected." in log_output
-
-    # Capture logs for tsvalid validation
-    tsvalid_capture = StringIO()
-    with redirect_stdout(tsvalid_capture), redirect_stderr(tsvalid_capture), configure_logger(
-        tsvalid_capture
-    ):
-        validates(sssom_text, comment="#", exceptions=[], summary=True, fail=False)
-
-    # Restore outputs and get results
-    tsvalid_report = tsvalid_capture.getvalue() or "No validation issues detected."
-    tsvalid_ok = "No validation issues detected." in tsvalid_report
-    # Compile the validation report
-
-    report = ""
-
-    if sssom_ok and tsvalid_ok:
-        report = "No validation issues detected."
+def _render_serialisation_section(serialisation_text, serialisation_format, markdown_type):
+    if serialisation_text:
+        with st.expander(serialisation_format):
+            rendering_text_rdf = f"""\n\n
+```{markdown_type}
+{serialisation_text}
+```"""
+            st.markdown(rendering_text_rdf)
     else:
-        report = "Some problems where found with your file."
-        if not sssom_ok:
-            report += f"\n\n### SSSOM report\n\nFor more information see [SSSOM documentation](https://mapping-commons.github.io/sssom/linkml-index/)\n\n{log_output}"
-        if not tsvalid_ok:
-            report += f"\n\n### TSVALID report\n\nFor more information see [tsvalid documentation](https://ontodev.github.io/tsvalid/checks.html)\n\n{tsvalid_report}"
-
-    return report.strip(), sssom_json, sssom_rdf, sssom_markdown
+        st.markdown(f"{serialisation_format} rendering is not available for this file, see log.")
 
 
-# Helper function for logging configuration
-@contextmanager
-def configure_logger(capture_stream):
-    """Configure logger to write to a stream."""
-    logger = logging.getLogger()
-    log_handler = logging.StreamHandler(capture_stream)
-    log_handler.setLevel(logging.DEBUG)
-    log_handler.setFormatter(logging.Formatter("**%(levelname)s**: %(message)s"))
-    logger.addHandler(log_handler)
-    try:
-        yield
-    finally:
-        log_handler.flush()  # Ensure everything is written to the stream
-        logger.removeHandler(log_handler)
+def _render_validation_batch(valid: bool, key: str):
+    if valid:
+        badge_url = f"https://img.shields.io/badge/{key}-SUCCESSFUL-green?style=green"
+    else:
+        badge_url = f"https://img.shields.io/badge/{key}-UNSUCCESSFUL-red?style=flat"
+
+    st.markdown(f"![Badge]({badge_url})")
 
 
-def _get_package_version(package_name):
-    try:
-        return version(package_name)
-    except PackageNotFoundError:
-        return f"{package_name} is not installed."
+def _render_tool_information():
+    tool_versions = f"""\n\n
 
+### Validation info report
 
-def add_example():
-    """Add an example to the input text area."""
-    example = """# curie_map:
-#   HP: http://purl.obolibrary.org/obo/HP_
-#   MP: http://purl.obolibrary.org/obo/MP_
-#   owl: http://www.w3.org/2002/07/owl#
-#   rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns#
-#   rdfs: http://www.w3.org/2000/01/rdf-schemas#
-#   semapv: https://w3id.org/semapv/vocab/
-#   skos: http://www.w3.org/2004/02/skos/core#
-#   sssom: https://w3id.org/sssom/
-# license: https://creativecommons.org/publicdomain/zero/1.0/
-# mapping_provider: http://purl.obolibrary.org/obo/upheno.owl
-# mapping_set_id: https://w3id.org/sssom/mappings/27f85fe9-8a72-4e76-909b-7ba4244d9ede
-subject_id	subject_label	predicate_id	object_id	object_label	mapping_justification
-HP:0000175	Cleft palate	skos:exactMatch	MP:0000111	cleft palate	semapv:LexicalMatching
-HP:0000252	Microcephaly	skos:exactMatch	MP:0000433	microcephaly	semapv:LexicalMatching
-HP:0000260	Wide anterior fontanel	skos:exactMatch	MP:0000085	large anterior fontanelle	semapv:LexicalMatching
-HP:0000375	Abnormal cochlea morphology	skos:exactMatch	MP:0000031	abnormal cochlea morphology	semapv:LexicalMatching
-HP:0000411	Protruding ear	skos:exactMatch	MP:0000021	prominent ears	semapv:LexicalMatching
-HP:0000822	Hypertension	skos:exactMatch	MP:0000231	hypertension	semapv:LexicalMatching"""
-    return example
+**sssom-py** version: {get_package_version("sssom")}\n
+**tsvalid** version: {get_package_version("tsvalid")}\n
+**linkml** version: {get_package_version("linkml")}\n
+"""
+    st.markdown(tool_versions)
 
 
 limit_lines_evaluated = 1000
@@ -156,56 +109,59 @@ st.markdown(
 
 area_txt = "Paste your SSSOM mapping text here:"
 
-result = add_example()
-sssom_text = st.text_area(area_txt, result, height=400, key="sssom_input")
-
-sssom_length_within_limit = True
-if len(sssom_text.splitlines()) > limit_lines_evaluated:
-    truncated_text = "\n".join(sssom_text.splitlines()[:limit_lines_evaluated])
-    sssom_length_within_limit = False
+sssom_text = st.text_area(area_txt, generate_example(), height=400, key="sssom_input")
+example_url = ""
+sssom_url_input = st.text_input(
+    "Paste a URL to your SSSOM file here.", example_url, key="sssom_input_url"
+)
 
 if st.button("Validate"):
-    if not sssom_length_within_limit:
-        st.markdown(
-            f"**Warning**: your file is too long, only the first {limit_lines_evaluated} lines will be evaluated."
-        )
+    sssom_text = _get_sssom_text(sssom_text, sssom_url_input, limit_lines_evaluated)
+    result: SSSOMValidation = _validate_sssom(sssom_text, limit_lines_displayed)
 
-    result, sssom_json, sssom_rdf, sssom_markdown = validate_sssom(
-        sssom_text, limit_lines_displayed
-    )
-
-    st.markdown(str(result).replace("\n", "\n\n"))
-
-    rendering_text = f"""\n\n
-### SSSOM Rendered\n\n"
-
-This is how the first {limit_lines_displayed} lines of your SSSOM file look like when rendered in various formats.
-"""
-
-    st.markdown(sssom_markdown)
-
-    if sssom_rdf:
-        with st.expander("RDF"):
-            rendering_text_rdf = f"""\n\n
-        ```turtle
-        {sssom_rdf}
-        ```"""
-            st.markdown(rendering_text_rdf)
+    if result.is_valid():
+        badge_url = "https://img.shields.io/badge/VALID-green"
     else:
-        st.markdown(
-            "Extension definitions are not supported in RDF output yet.\n"
-            "Follow https://github.com/linkml/linkml/issues/2445 for updates."
-        )
+        badge_url = "https://img.shields.io/badge/INVALID-red"
 
-    with st.expander("JSON"):
-        st.json(sssom_json)
+    _render_validation_batch(result.is_valid(), "Validation status overall")
 
-tool_versions = f"""\n\n
+    st.header("tsvalid validation")
+    _render_validation_batch(result.is_ok_tsvalid(), "tsvalid")
+    st.markdown(
+        "For more information see [tsvalid documentation](https://ontodev.github.io/tsvalid/checks.html)"
+    )
+    with st.expander("Report"):
+        st.markdown(result.get_tsvalid_report())
 
-### Validation info report
+    st.header("SSSOM Schema validation")
+    _render_validation_batch(result.is_ok_sssom_validation(), "SSSOM")
+    st.markdown(
+        "For more information see [SSSOM documentation](https://mapping-commons.github.io/sssom/linkml-index/)"
+    )
+    with st.expander("Report"):
+        st.markdown(result.get_sssom_validation_report())
 
-**sssom-py** version: {_get_package_version("sssom")}\n
-**tsvalid** version: {_get_package_version("tsvalid")}\n
-**linkml** version: {_get_package_version("linkml")}\n
-"""
-st.markdown(tool_versions)
+    st.header("SSSOM Sample Conversions")
+    _render_validation_batch(result.is_ok_sssom_conversion(), "SSSOM")
+    st.markdown(
+        "This is how the first {limit_lines_displayed} lines of your SSSOM file look like when rendered in various formats."
+    )
+    st.markdown(
+        "For more information see [SSSOM documentation](https://mapping-commons.github.io/sssom/spec-formats/)"
+    )
+    st.markdown(result.sssom_markdown)
+    with st.expander("Conversion report"):
+        st.markdown(result.get_sssom_conversion_report())
+    _render_serialisation_section(result.sssom_rdf, "RDF", "turtle")
+    _render_serialisation_section(result.sssom_json, "JSON", "json")
+
+st.header("Additional information")
+_render_tool_information()
+
+st.header("Contact")
+st.image("src/sssom_validate_ui/resources/monarch.png", use_container_width=False, width=300)
+st.markdown("Presented by the [Monarch Initiative](https://monarchinitiative.org/)")
+st.markdown(
+    "For feedback use our [issue tracker](https://github.com/mapping-commons/sssom-validate-ui)."
+)
