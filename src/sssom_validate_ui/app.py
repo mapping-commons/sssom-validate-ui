@@ -74,7 +74,7 @@ def _render_serialisation_section(serialisation_text, serialisation_format, mark
         st.markdown(f"{serialisation_format} rendering is not available for this file, see log.")
 
 
-def _render_validation_batch(valid: bool, key: str):
+def _render_validation_badge(valid: bool, key: str):
     if valid:
         badge_url = f"https://img.shields.io/badge/{key}-SUCCESSFUL-green?style=green"
     else:
@@ -119,10 +119,10 @@ if st.button("Validate"):
     sssom_text = _get_sssom_text(sssom_text, sssom_url_input, limit_lines_evaluated)
     result: SSSOMValidation = _validate_sssom(sssom_text, limit_lines_displayed)
 
-    _render_validation_batch(result.is_valid(), "Validation%20status%20overall")
+    _render_validation_badge(result.is_valid(), "Validation%20status%20overall")
 
     st.header("tsvalid validation")
-    _render_validation_batch(result.is_ok_tsvalid(), "tsvalid")
+    _render_validation_badge(result.is_ok_tsvalid(), "tsvalid")
     st.markdown(
         "For more information see [tsvalid documentation](https://ontodev.github.io/tsvalid/checks.html)"
     )
@@ -130,7 +130,7 @@ if st.button("Validate"):
         st.markdown(result.get_tsvalid_report())
 
     st.header("SSSOM Schema validation")
-    _render_validation_batch(result.is_ok_sssom_validation(), "SSSOM")
+    _render_validation_badge(result.is_ok_sssom_validation(), "SSSOM")
     st.markdown(
         "For more information see [SSSOM documentation](https://mapping-commons.github.io/sssom/linkml-index/)"
     )
@@ -138,7 +138,7 @@ if st.button("Validate"):
         st.markdown(result.get_sssom_validation_report())
 
     st.header("SSSOM Sample Conversions")
-    _render_validation_batch(result.is_ok_sssom_conversion(), "SSSOM")
+    _render_validation_badge(result.is_ok_sssom_conversion(), "SSSOM")
     st.markdown(
         "This is how the first {limit_lines_displayed} lines of your SSSOM file look like when rendered in various formats."
     )
