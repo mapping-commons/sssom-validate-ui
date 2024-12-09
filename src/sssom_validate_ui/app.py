@@ -16,7 +16,7 @@ sys.tracebacklimit = 0
 def _maybe_prune_sssom_text(sssom_text, limit_lines_evaluated):
     sssom_length_within_limit = True
     if len(sssom_text.splitlines()) > limit_lines_evaluated:
-        truncated_text = "\n".join(sssom_text.splitlines()[:limit_lines_evaluated])
+        truncated_text = "\n".join(sssom_text.splitlines()[:limit_lines_evaluated]) + "\n"
         sssom_length_within_limit = False
     else:
         truncated_text = sssom_text
