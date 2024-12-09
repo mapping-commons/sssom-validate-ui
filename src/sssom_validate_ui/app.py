@@ -48,7 +48,8 @@ def _get_sssom_text(sssom_text_str, sssom_url_str, limit_lines_evaluated):
     if sssom_url_str:
         sssom_text = requests.get(sssom_url_str, timeout=60).text
     elif sssom_text_str:
-        sssom_text = sssom_text_str
+        # As streamlit prunes away the last newline character, we need to add it back
+        sssom_text = sssom_text_str +"\n"
     else:
         raise ValueError("No SSSOM text or URL provided.")
     return StringIO(_maybe_prune_sssom_text(sssom_text, limit_lines_evaluated))
