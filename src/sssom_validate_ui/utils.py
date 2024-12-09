@@ -70,7 +70,7 @@ class SSSOMValidation:
         validate(msdf=self.msdf, validation_types=validation_types, fail_on_error=False)
 
     def _run_tsvalid_validation(self):
-        validates(self.sssom_text, comment="#", exceptions=[], summary=True, fail=False)
+        validates(self.sssom_text, comment="#", exceptions=["W1"], summary=True, fail=False)
 
     def run(self):
         """Run the SSSOM validation and conversion."""
