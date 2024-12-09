@@ -13,7 +13,8 @@ importlib-metadata = "^4.8.0"
 streamlit = "^1.23.1"
 sssom = ">=0.4.15"
 #sssom = {path = "../sssom-py", develop = true}
-tsvalid = ">=0.0.4"
+tsvalid = ">=0.0.5"
+#tsvalid = {path = "../tsvalid", develop = true}
 tabulate = ">=0.8.9"
 
 [tool.poetry.group.dev.dependencies]
