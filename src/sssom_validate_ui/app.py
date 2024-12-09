@@ -74,13 +74,15 @@ def _render_serialisation_section(serialisation_text, serialisation_format, mark
         st.markdown(f"{serialisation_format} rendering is not available for this file, see log.")
 
 
-def _render_validation_badge(valid: bool, key: str):
-    if valid:
-        badge_url = f"https://img.shields.io/badge/{key}-SUCCESSFUL-green?style=green"
-    else:
+def _render_validation_badge(key: str, count_errors: int, count_warnings: int):
+    if count_errors > 0:
         badge_url = f"https://img.shields.io/badge/{key}-UNSUCCESSFUL-red?style=flat"
+    elif count_warnings > 0:
+        badge_url = f"https://img.shields.io/badge/{key}-WARNINGS-yellow?style=flat"
+    else:
+        badge_url = f"https://img.shields.io/badge/{key}-SUCCESSFUL-green?style=flat"
 
-    st.markdown(f"![Badge]({badge_url})")
+    st.markdown(f"![Badge]({badge_url}) ({count_errors} errors and {count_warnings} warnings)")
 
 
 def _render_tool_information():
@@ -107,15 +109,18 @@ st.markdown(
     f"Currently, the validator checks the the first {limit_lines_evaluated} lines of the provided SSSOM file."
 )
 
-area_txt = ("Paste your SSSOM mapping in TSV format here. For information on how to format a SSSOM TSV "
-            "correctly see [here](https://mapping-commons.github.io/sssom/spec-formats-tsv/):")
+area_txt = (
+    "Paste your SSSOM mapping in TSV format here. For information on how to format a SSSOM TSV "
+    "correctly see [here](https://mapping-commons.github.io/sssom/spec-formats-tsv/):"
+)
 
 sssom_text = st.text_area(area_txt, generate_example(), height=400, key="sssom_input")
 example_url = ""
 sssom_url_input = st.text_input(
     "Paste a URL to your SSSOM file here. "
-    "The URL will take precedence over anything you might see in the text area above.", 
-    example_url, key="sssom_input_url"
+    "The URL will take precedence over anything you might see in the text area above.",
+    example_url,
+    key="sssom_input_url",
 )
 
 if st.button("Validate"):
@@ -124,18 +129,33 @@ if st.button("Validate"):
         st.markdown("Both SSSOM text and URL provided. URL will be used.")
     result: SSSOMValidation = _validate_sssom(sssom_text, limit_lines_displayed)
 
-    _render_validation_badge(result.is_valid(), "Validation%20status%20overall")
+    ct_tsvalid_errors = result.count_errors_tsvalid()
+    ct_sssom_validation_errors = result.count_errors_sssom_validation()
+    ct_sssom_conversion_errors = result.count_errors_sssom_conversion()
+    ct_tsvalid_warnings = result.count_warnings_tsvalid()
+    ct_sssom_validation_warnings = result.count_warnings_sssom_validation()
+    ct_sssom_conversion_warnings = result.count_warnings_sssom_conversion()
+    ct_total_errors = ct_tsvalid_errors + ct_sssom_validation_errors + ct_sssom_conversion_errors
+    ct_total_warnings = (
+        ct_tsvalid_warnings + ct_sssom_validation_warnings + ct_sssom_conversion_warnings
+    )
+
+    _render_validation_badge("Validation%20status%20overall", ct_total_errors, ct_total_warnings)
 
     st.header("tsvalid validation")
-    _render_validation_badge(result.is_ok_tsvalid(), "tsvalid")
+    _render_validation_badge("tsvalid", ct_tsvalid_errors, ct_tsvalid_warnings)
     st.markdown(
         "For more information see [tsvalid documentation](https://ontodev.github.io/tsvalid/checks.html)"
     )
-    with st.expander("Report"):
+    with st.expander("Validation report"):
         st.markdown(result.get_tsvalid_report())
 
     st.header("SSSOM Schema validation")
-    _render_validation_badge(result.is_ok_sssom_validation(), "SSSOM")
+    _render_validation_badge(
+        "SSSOM%20Validation",
+        ct_sssom_validation_errors,
+        ct_sssom_validation_warnings,
+    )
     st.markdown(
         "For more information see [SSSOM documentation](https://mapping-commons.github.io/sssom/linkml-index/)"
     )
@@ -143,7 +163,11 @@ if st.button("Validate"):
         st.markdown(result.get_sssom_validation_report())
 
     st.header("SSSOM Sample Conversions")
-    _render_validation_badge(result.is_ok_sssom_conversion(), "SSSOM")
+    _render_validation_badge(
+        "SSSOM%20Conversion",
+        ct_sssom_conversion_errors,
+        ct_sssom_conversion_warnings,
+    )
     st.markdown(
         "This is how the first {limit_lines_displayed} lines of your SSSOM file look like when rendered in various formats."
     )

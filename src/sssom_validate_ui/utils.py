@@ -29,6 +29,8 @@ class SSSOMValidation:
         self.sssom_validation_capture = StringIO()
         self.tsvalid_capture = StringIO()
         self.sssom_conversion_capture = StringIO()
+        self.recognise_error_string = "**ERROR**:"
+        self.recognise_warning_string = "**WARNING**:"
 
     def _run_sssom_conversion(self):
         if not self.msdf:
@@ -89,25 +91,57 @@ class SSSOMValidation:
         return self._get_report(self.sssom_conversion_capture)
 
     def _get_report(self, capture_stream):
-        return capture_stream.getvalue() or "No validation issues detected."
+        return capture_stream.getvalue() or "No issues detected."
 
     def is_ok_tsvalid(self):
         """Check if the tsvalid validation is OK."""
-        return self._is_ok(self.tsvalid_capture)
+        return self.count_errors_tsvalid() == 0
 
     def is_ok_sssom_validation(self):
         """Check if the SSSOM validation is OK."""
-        return self._is_ok(self.sssom_validation_capture)
+        return self.count_errors_sssom_validation() == 0
 
     def is_ok_sssom_conversion(self):
         """Check if the SSSOM conversion is OK."""
-        return self._is_ok(self.sssom_conversion_capture)
+        return self.count_errors_sssom_conversion() == 0
 
-    def _is_ok(self, capture_stream):
-        return not bool(capture_stream.getvalue())
+    def count_errors_tsvalid(self):
+        """Check number of tsvalid errors."""
+        return self._count_line_beginnings(self.get_tsvalid_report(), self.recognise_error_string)
+
+    def count_errors_sssom_validation(self):
+        """Check number of SSSOM errors."""
+        return self._count_line_beginnings(
+            self.get_sssom_validation_report(), self.recognise_error_string
+        )
+
+    def count_errors_sssom_conversion(self):
+        """Check number of errors during SSSOM conversiomn."""
+        return self._count_line_beginnings(
+            self.get_sssom_conversion_report(), self.recognise_error_string
+        )
+
+    def count_warnings_tsvalid(self):
+        """Check number of tsvalid errors."""
+        return self._count_line_beginnings(self.get_tsvalid_report(), self.recognise_warning_string)
+
+    def count_warnings_sssom_validation(self):
+        """Check number of SSSOM errors."""
+        return self._count_line_beginnings(
+            self.get_sssom_validation_report(), self.recognise_warning_string
+        )
+
+    def count_warnings_sssom_conversion(self):
+        """Check number of errors during SSSOM conversiomn."""
+        return self._count_line_beginnings(
+            self.get_sssom_conversion_report(), self.recognise_warning_string
+        )
+
+    def _count_line_beginnings(self, report, recognise_string):
+        return sum(1 for line in report.splitlines() if line.startswith(recognise_string))
 
     def is_valid(self):
-        """Check if the SSSOM file is valid overall."""
+        """Check if the SSSOM file is valid overall, i.e. does not contain any errors."""
         return (
             self.is_ok_tsvalid() and self.is_ok_sssom_validation() and self.is_ok_sssom_conversion()
         )
